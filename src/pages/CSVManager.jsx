@@ -7,6 +7,7 @@ import { toast } from "sonner";
 const CSVManager = () => {
   const [csvData, setCsvData] = useState([]);
   const [headers, setHeaders] = useState([]);
+  const [editingRow, setEditingRow] = useState(null);
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -23,6 +24,53 @@ const CSVManager = () => {
       };
       reader.readAsText(file);
     }
+  };
+
+  const handleEdit = (rowIndex) => {
+    setEditingRow(rowIndex);
+  };
+
+  const handleSave = (rowIndex) => {
+    setEditingRow(null);
+    toast.success("Row updated successfully");
+  };
+
+  const handleDelete = (rowIndex) => {
+    const newData = csvData.filter((_, index) => index !== rowIndex);
+    setCsvData(newData);
+    toast.success("Row deleted successfully");
+  };
+
+  const handleAddRow = () => {
+    const newRow = new Array(headers.length).fill('');
+    setCsvData([...csvData, newRow]);
+    toast.success("New row added");
+  };
+
+  const handleCellChange = (rowIndex, cellIndex, value) => {
+    const newData = [...csvData];
+    newData[rowIndex][cellIndex] = value;
+    setCsvData(newData);
+  };
+
+  const handleDownload = () => {
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'exported_data.csv');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    toast.success("CSV file downloaded");
   };
 
   return (
@@ -42,7 +90,7 @@ const CSVManager = () => {
 
       {/* Data Display Section */}
       {csvData.length > 0 && (
-        <div className="mb-4">
+        <div className="mb-4 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -56,23 +104,36 @@ const CSVManager = () => {
               {csvData.map((row, rowIndex) => (
                 <TableRow key={rowIndex}>
                   {row.map((cell, cellIndex) => (
-                    <TableCell key={cellIndex}>{cell}</TableCell>
+                    <TableCell key={cellIndex}>
+                      {editingRow === rowIndex ? (
+                        <Input
+                          value={cell}
+                          onChange={(e) => handleCellChange(rowIndex, cellIndex, e.target.value)}
+                        />
+                      ) : (
+                        cell
+                      )}
+                    </TableCell>
                   ))}
                   <TableCell>
-                    <Button variant="outline" className="mr-2">Edit</Button>
-                    <Button variant="destructive">Delete</Button>
+                    {editingRow === rowIndex ? (
+                      <Button onClick={() => handleSave(rowIndex)} variant="outline" className="mr-2">Save</Button>
+                    ) : (
+                      <Button onClick={() => handleEdit(rowIndex)} variant="outline" className="mr-2">Edit</Button>
+                    )}
+                    <Button onClick={() => handleDelete(rowIndex)} variant="destructive">Delete</Button>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-          <Button className="mt-2">Add Row</Button>
+          <Button onClick={handleAddRow} className="mt-2">Add Row</Button>
         </div>
       )}
 
       {/* Download Section */}
       {csvData.length > 0 && (
-        <Button>Download CSV</Button>
+        <Button onClick={handleDownload}>Download CSV</Button>
       )}
     </div>
   );
